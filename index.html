@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mega Minds XO</title>
+<style>
+  :root {
+    --bg: #050805;
+    --panel: #0b120b;
+    --accent: #00ff85; /* default futuristic green */
+    --accent-weak: #00ff8533;
+    --text: #e6ffe6;
+    --danger: #ff4d4d;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    background: radial-gradient(1200px 800px at 50% -10%, #0a150a 0%, var(--bg) 60%);
+    color: var(--text);
+  }
+  .hidden { display: none !important; }
+  .screen { min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
+  .card { background: linear-gradient(180deg, #0c130f, var(--panel)); border: 1px solid var(--accent-weak); border-radius: 18px; padding: 20px; box-shadow: 0 10px 30px #0008, inset 0 0 120px #0006; }
+  h1, h2, h3 { margin: 0.2rem 0 0.6rem; letter-spacing: 0.5px; }
+  .btn { cursor: pointer; border: 1px solid var(--accent); color: var(--bg); background: var(--accent); font-weight: 700; padding: 12px 16px; border-radius: 14px; transition: transform .06s ease, filter .2s; }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:active { transform: translateY(1px); }
+  .btn.ghost { background: transparent; color: var(--accent); }
+  .row { display: flex; gap: 12px; align-items: center; }
+  .col { display: grid; gap: 12px; }
+
+  /* Splash overlays */
+  .overlay { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.85); z-index: 50; text-align: center; }
+  .overlay .card { text-align: center; padding: 28px 24px; }
+  .timer { font-size: 2.5rem; color: var(--accent); text-shadow: 0 0 12px var(--accent); margin-top: 6px; }
+
+  /* Home screen */
+  #home .title { font-size: clamp(28px, 5vw, 44px); color: var(--accent); text-shadow: 0 0 18px var(--accent); }
+  #home .subtitle { opacity: .8; margin-bottom: 16px; }
+
+  /* Top bar for single player */
+  .topbar { position: fixed; inset-inline: 0; top: 0; height: 56px; display: grid; grid-template-columns: 56px 1fr 160px; align-items: center; padding: 0 8px; gap: 6px; background: linear-gradient(180deg, rgba(0,0,0,.75), rgba(0,0,0,.15)); border-bottom: 1px solid #0f2416; z-index: 5; }
+  .hamburger { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; border: 1px solid var(--accent-weak); cursor: pointer; }
+  .hamburger span { display: block; width: 18px; height: 2px; background: var(--accent); box-shadow: 0 6px 0 0 var(--accent), 0 -6px 0 0 var(--accent); }
+  .points { text-align: center; font-weight: 800; letter-spacing: .5px; }
+  .points .value { color: var(--accent); }
+  .levelTag { justify-self: end; font-size: .9rem; padding: 6px 10px; border-radius: 14px; border: 1px solid var(--accent-weak); color: var(--accent); }
+
+  /* Game board */
+  .board { display: grid; grid-template-columns: repeat(3, minmax(84px, 120px)); gap: 12px; justify-content: center; padding-top: 70px; }
+  .cell { width: min(24vw, 120px); height: min(24vw, 120px); max-width: 120px; max-height: 120px; display: grid; place-items: center; font-size: 3rem; font-weight: 900; color: var(--accent); background: #07110a; border: 1px solid var(--accent-weak); border-radius: 16px; cursor: pointer; box-shadow: inset 0 0 40px #0008; }
+  .cell.win { outline: 3px solid var(--accent); box-shadow: 0 0 12px var(--accent); }
+  .gridWrap { display: grid; gap: 18px; }
+  .infoRow { display: flex; justify-content: center; gap: 10px; align-items: center; }
+
+  /* Modal */
+  .modal { position: fixed; inset: 0; display: none; place-items: center; background: rgba(0,0,0,.55); z-index: 30; }
+  .modal.show { display: grid; }
+  .modal h3 { color: var(--accent); }
+  .modal .opt { padding: 10px 0; border-bottom: 1px dashed #1f3a2a; }
+  .modal label { display: block; margin: 6px 0 4px; opacity: .9; }
+  .select { background: #061008; border: 1px solid var(--accent-weak); color: var(--text); padding: 10px; border-radius: 10px; }
+  input[type="text"], input[type="number"] { background: #061008; border: 1px solid var(--accent-weak); color: var(--text); padding: 10px; border-radius: 10px; width: 100%; }
+
+  /* Footer buttons */
+  .footerRow { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
+
+  /* Small helpers */
+  .tag { font-size: .8rem; background: #07110a; border: 1px solid var(--accent-weak); color: var(--accent); padding: 3px 8px; border-radius: 12px; }
+  .note { font-size: .85rem; opacity: .8; }
+
+  /* Music toggle button */
+  #toggleMusic {
+    position: fixed;
+    bottom: 14px;
+    right: 14px;
+    z-index: 120;
+    background: var(--accent);
+    color: var(--bg);
+    border: 1px solid var(--accent-weak);
+    border-radius: 12px;
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 18px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+  }
+
+  @media (max-width: 420px) { .topbar { grid-template-columns: 56px 1fr 120px; } }
+</style>
+</head>
+<body>
+  <!-- Background music (looping) -->
+  <audio id="bgMusic" autoplay loop>
+    <source src="For the rest of us.mp3" type="audio/mpeg">
+    <!-- fallback text if audio not supported -->
+  </audio>
+  <button id="toggleMusic" title="Mute / Unmute">🔊</button>
+
+  <!-- Global overlays -->
+  <div id="startSplash" class="overlay">
+    <div class="card">
+      <h1 class="title">MEGA MINDS TIME</h1>
+      <div class="timer" id="startTimer">5</div>
+      <div class="note">Game boots in <span id="startTimerAlt">5</span>…</div>
+    </div>
+  </div>
+
+  <div id="resultSplash" class="overlay hidden">
+    <div class="card">
+      <h2 id="resultTitle">You won the Mega Minds</h2>
+      <div class="footerRow" id="resultActions"></div>
+    </div>
+  </div>
+
+  <!-- Home Screen -->
+  <section id="home" class="screen">
+    <div class="card" style="text-align:center; max-width: 560px;">
+      <h1 class="title">Mega Minds XO</h1>
+      <div class="subtitle">Futuristic green & black tic-tac-toe</div>
+      <div class="col" style="margin-top:12px;">
+        <button id="btnSingle" class="btn">Single Player</button>
+        <button id="btnMulti" class="btn ghost">Multiplayer</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Single Player Screen -->
+  <section id="single" class="screen hidden">
+    <div class="topbar">
+      <div class="hamburger" id="openMenu" title="Menu"><span></span></div>
+      <div class="points">Points :$<span class="value" id="pointsVal">0</span></div>
+      <div class="levelTag" id="levelTag">Level 1 • Medium</div>
+    </div>
+
+    <div class="gridWrap">
+      <div class="board" id="boardSP"></div>
+      <div class="infoRow">
+        <span class="tag" id="whoTag">You are X</span>
+        <button class="btn ghost" id="spendEasy" title="Spend 5000 coins to make AI very easy for this level (one time).">Nerf AI (5000)</button>
+        <button class="btn" id="resetLevel">Restart Level</button>
+        <button class="btn ghost" id="toHome1">Home</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Multiplayer Screen -->
+  <section id="multi" class="screen hidden">
+    <div class="card" style="padding:16px 12px; text-align:center;">
+      <h2>Multiplayer (same device)</h2>
+      <div class="board" id="boardMP"></div>
+      <div class="footerRow">
+        <button class="btn" id="newMP">New Game</button>
+        <button class="btn ghost" id="toHome2">Home</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Modal: Hamburger Menu -->
+  <div id="menuModal" class="modal" aria-hidden="true">
+    <div class="card" style="width:min(92vw,560px);">
+      <h3>☰ Mega Minds Menu</h3>
+      <div class="opt">
+        <strong>All games won:</strong> <span id="statWon">0</span>
+      </div>
+      <div class="opt">
+        <strong>All games lost:</strong> <span id="statLost">0</span>
+      </div>
+      <div class="opt">
+        <strong>Change colour & X/O</strong>
+        <div class="row" style="flex-wrap:wrap;">
+          <label>Theme colour</label>
+          <select id="colorPick" class="select">
+            <option value="#00ff85">Futuristic Green</option>
+            <option value="#ff3b3b">Red</option>
+            <option value="#3b7bff">Blue</option>
+            <option value="#ffffff">White</option>
+            <option value="#ff72d2">Pink</option>
+          </select>
+        </div>
+        <div class="row" style="flex-wrap:wrap; margin-top:6px;">
+          <label>Your mark</label>
+          <select id="markPick" class="select">
+            <option value="X">X</option>
+            <option value="O">O</option>
+          </select>
+        </div>
+        <div class="note">Takes effect immediately.</div>
+      </div>
+      <div class="opt">
+        <strong>Enter secret code</strong>
+        <div class="row">
+          <input type="text" id="secretInput" placeholder="Enter code">
+          <button class="btn" id="applyCode">Apply</button>
+        </div>
+        <div class="note">Secret codes are one-time and level-based.</div>
+      </div>
+      <div class="opt">
+        <strong>Home</strong>
+        <div class="row"><button class="btn ghost" id="goHomeFromMenu">Go Home</button></div>
+      </div>
+      <div class="footerRow"><button class="btn" id="closeMenu">Close</button></div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // ---------- Utilities FIRST (to avoid hoist issues) ----------
+  function $(id){ return document.getElementById(id); }
+  function on(id, ev, fn){ const el=$(id); if(el) el.addEventListener(ev, fn); }
+  function other(x){ return x==='X' ? 'O' : 'X'; }
+  function fmt(n){ return Number(n).toLocaleString(); }
+  function applyTheme(hex){ document.documentElement.style.setProperty('--accent', hex); document.documentElement.style.setProperty('--accent-weak', hex + '33'); }
+  function mkBtn(label, fn){ const b=document.createElement('button'); b.className='btn'; b.textContent=label; b.addEventListener('click', fn); return b; }
+  function toast(msg){ const t=document.createElement('div'); t.textContent=msg; Object.assign(t.style,{position:'fixed',bottom:'20px',left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,.85)',color:'var(--text)',padding:'10px 14px',border:'1px solid var(--accent-weak)',borderRadius:'12px',zIndex:60}); document.body.appendChild(t); setTimeout(()=>t.remove(),1800); }
+
+  // ---------- State & Persistence ----------
+  const LS_KEY = 'mega_minds_state_v1';
+  const defaultState = { coins:0, level:1, wins:0, losses:0, theme:'#00ff85', playerMark:'X', usedCodes:{}, nerfNext:false };
+  let state = loadState();
+  applyTheme(state.theme);
+
+  function saveState(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); updateHUD(); }
+  function loadState(){ try { const s = JSON.parse(localStorage.getItem(LS_KEY)||'{}'); return { ...defaultState, ...s }; } catch(e){ return { ...defaultState }; } }
+
+  // ---------- Elements ----------
+  const startSplash = $('startSplash');
+  const startTimer = $('startTimer');
+  const startTimerAlt = $('startTimerAlt');
+  const resultSplash = $('resultSplash');
+  const resultTitle = $('resultTitle');
+  const resultActions = $('resultActions');
+
+  const home = $('home');
+  const single = $('single');
+  const multi = $('multi');
+
+  const boardSP = $('boardSP');
+  const whoTag = $('whoTag');
+  const levelTag = $('levelTag');
+  const spendEasy = $('spendEasy');
+  const boardMP = $('boardMP');
+
+  const menuModal = $('menuModal');
+  const statWon = $('statWon');
+  const statLost = $('statLost');
+  const colorPick = $('colorPick');
+  const markPick = $('markPick');
+  const secretInput = $('secretInput');
+
+  // ---------- Navigation ----------
+  on('btnSingle','click', () => { showScreen('single'); newSingleGame(true); });
+  on('btnMulti','click', () => { showScreen('multi'); newMultiGame(); });
+  on('toHome1','click', goHome);
+  on('toHome2','click', goHome);
+  on('goHomeFromMenu','click', goHome);
+
+  function goHome(){ showScreen('home'); }
+  function showScreen(id){ [home, single, multi].forEach(s=>s.classList.add('hidden')); $(id).classList.remove('hidden'); if(id==='single') updateHUD(); }
+
+  // ---------- Splash countdown (robust) ----------
+  let t = 5;
+  updateCountdown(t);
+  const tick = setInterval(()=>{
+    t--; updateCountdown(t);
+    if(t<=0){ clearInterval(tick); startSplash.classList.add('hidden'); }
+  }, 1000);
+  function updateCountdown(val){ if(startTimer) startTimer.textContent = Math.max(0,val); if(startTimerAlt) startTimerAlt.textContent = Math.max(0,val); }
+
+  // ---------- HUD & Menu ----------
+  function updateHUD(){ $('pointsVal').textContent = fmt(state.coins); statWon.textContent = state.wins; statLost.textContent = state.losses; const tier = tierForLevel(state.level); levelTag.textContent = levelLabel(state.level, tier); whoTag.textContent = `You are ${state.playerMark}`; spendEasy.disabled = state.coins < 5000; colorPick.value = state.theme; markPick.value = state.playerMark; }
+  function levelLabel(level, tier){ let name = tierName(tier); if(level>100) name = 'LEVEL IMPOS'; return `Level ${level} • ${name}`; }
+
+  on('openMenu','click', () => menuModal.classList.add('show'));
+  on('closeMenu','click', () => menuModal.classList.remove('show'));
+  colorPick.addEventListener('change', e => { state.theme = e.target.value; applyTheme(state.theme); saveState(); });
+  markPick.addEventListener('change', e => { state.playerMark = e.target.value; saveState(); newSingleGame(true); });
+
+  // Secret code logic (codes are internal; no hints shown in UI)
+  on('applyCode','click', () => {
+    const codeRaw = (secretInput.value || '').trim();
+    if(!codeRaw) return;
+    const code = codeRaw.toLowerCase();
+    if(state.usedCodes[code]) { toast('That code was already used.'); return; }
+    const L = state.level;
+    let ok=false, add=0;
+    if(L>=1 && L<=4 && code==='megafarms'){ ok=true; add=10000; }
+    else if(L>=5 && L<=16 && code==='megaminds'){ ok=true; add=10000; }
+    else if(L===17 && code==='1millionmega'){ ok=true; add=1000000; }
+    else if(L>=18 && code==='megakings'){ ok=true; add=150; }
+    if(!ok){ toast('Invalid code for this level.'); return; }
+    state.coins += add; state.usedCodes[code]=true; saveState(); secretInput.value=''; toast(`+$$${fmt(add)}`);
+  });
+
+  // Spend coins to nerf AI
+  spendEasy.addEventListener('click', () => { if(state.coins>=5000){ state.coins -= 5000; state.nerfNext = true; saveState(); toast('AI nerfed for this level!'); } });
+
+  // ---------- Single Player Game ----------
+  let spBoard, spTurn, spOver, spCells, spAI; // board as array of 9
+  on('resetLevel','click', ()=> newSingleGame(true));
+
+  function newSingleGame(){
+    spBoard = Array(9).fill(''); spOver=false; spCells=[]; boardSP.innerHTML='';
+    // Alternate start player
+    spTurn = (Math.random()<0.5) ? 'X' : 'O';
+    for(let i=0;i<9;i++){
+      const c=document.createElement('button'); c.className='cell'; c.dataset.idx=i; c.addEventListener('click', onSPClick); boardSP.appendChild(c); spCells.push(c);
+    }
+    updateHUD();
+    const tier = tierForLevel(state.level); spAI = createAI(tier, state.nerfNext);
+    // If AI starts
+    setTimeout(()=> maybeAIMove(), 300);
+  }
+
+  function onSPClick(e){ if(spOver) return; const i=+e.currentTarget.dataset.idx; if(spBoard[i]) return; if(spTurn!==state.playerMark) return; place(i, state.playerMark, spCells[i]); if(checkEnd(spBoard)) return; maybeAIMove(); }
+
+  function maybeAIMove(){ if(spOver) return; if(spTurn===state.playerMark) return; const aiMark = other(state.playerMark); setTimeout(()=>{ const move = spAI(spBoard.slice(), aiMark, state.playerMark); if(move!=null && spBoard[move]===''){ place(move, aiMark, spCells[move]); checkEnd(spBoard); } }, 220); }
+
+  function place(i, mark, el){ spBoard[i]=mark; el.textContent=mark; spTurn=other(mark); }
+
+  function checkEnd(b){
+    const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    for(const L of lines){ const [a,c,d]=L; const v=b[a]; if(v && v===b[c] && v===b[d]){ highlight(L); const playerWon=(v===state.playerMark); endGame(playerWon?'win':'lose'); return true; } }
+    if(b.every(v=>v)){ endGame('draw'); return true; }
+    return false;
+  }
+  function highlight(L){ L.forEach(i=> spCells[i].classList.add('win')); }
+
+  function endGame(kind){
+    spOver=true; state.nerfNext=false; // consume nerf regardless of result
+    if(kind==='win'){
+      state.wins++; state.coins += 500; // reward
+      state.level = Math.min(state.level + 1, 101); // 101 == LEVEL IMPOS track
+      showResultSplash('You won the Mega Minds', 4000);
+    } else if(kind==='lose'){
+      state.losses++; showResultSplash("Your a Mega Minds rat", 4000);
+    } else {
+      showResultSplash('Draw – try again', 2000);
+    }
+    saveState();
+  }
+
+  function showResultSplash(text, ms){
+    resultActions.innerHTML=''; resultTitle.textContent=text; resultSplash.classList.remove('hidden');
+    // If we are in LEVEL IMPOS and we just won, show the special reset button
+    const inImpos = (state.level>100 && text.includes('won'));
+    if(inImpos){
+      resultTitle.textContent = 'You made it to the top of mega forehead minds';
+      const btn = mkBtn('Beat megas again', ()=>{ resultSplash.classList.add('hidden'); state.level=1; saveState(); newSingleGame(true); });
+      resultActions.appendChild(btn);
+      return; // stay until clicked
+    }
+    setTimeout(()=>{ resultSplash.classList.add('hidden'); newSingleGame(true); }, ms||3000);
+  }
+
+  // ---------- Multiplayer ----------
+  let mpBoard, mpTurn, mpOver, mpCells;
+  function newMultiGame(){ mpBoard=Array(9).fill(''); mpTurn='X'; mpOver=false; mpCells=[]; boardMP.innerHTML=''; for(let i=0;i<9;i++){ const c=document.createElement('button'); c.className='cell'; c.dataset.idx=i; c.addEventListener('click', onMPClick); boardMP.appendChild(c); mpCells.push(c); } }
+  function onMPClick(e){ if(mpOver) return; const i=+e.currentTarget.dataset.idx; if(mpBoard[i]) return; mpBoard[i]=mpTurn; mpCells[i].textContent=mpTurn; mpTurn=other(mpTurn); checkMP(mpBoard); }
+  function checkMP(b){ const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]; for(const L of lines){ const [a,c,d]=L; const v=b[a]; if(v && v===b[c] && v===b[d]){ L.forEach(i=>mpCells[i].classList.add('win')); mpOver=true; toast(v+' wins!'); return true; } } if(b.every(v=>v)){ mpOver=true; toast('Draw'); return true; } return false; }
+  on('newMP','click', newMultiGame);
+
+  // ---------- AI & Difficulty ----------
+  const TIER = { MEDIUM:1, HARD:2, IMPOSSIBLE:3, IMPOS:4 };
+  function tierForLevel(level){ if(level<=2) return TIER.MEDIUM; if(level<=10) return TIER.HARD; if(level<=100) return TIER.IMPOSSIBLE; return TIER.IMPOS; }
+  function tierName(t){ return (t===TIER.MEDIUM? 'Medium' : t===TIER.HARD? 'Difficult' : t===TIER.IMPOSSIBLE? 'Impossible*' : 'LEVEL IMPOS'); }
+
+  function createAI(tier, nerfed){ if(nerfed){ return (b, ai, pl) => randomMove(b); } if(tier===TIER.MEDIUM){ return (b, ai, pl) => ruleAI(b, ai, pl, 0.25); } else if(tier===TIER.HARD){ return (b, ai, pl) => minimaxMove(b, ai, pl, 4, 0.12); } else if(tier===TIER.IMPOSSIBLE){ return (b, ai, pl) => minimaxMove(b, ai, pl, 9, 0.07); } else { return (b, ai, pl) => minimaxMove(b, ai, pl, 9, 0.02); } }
+  function randomMove(b){ const empty=b.map((v,i)=>v?null:i).filter(i=>i!=null); if(!empty.length) return null; return empty[Math.floor(Math.random()*empty.length)]; }
+  function ruleAI(b, ai, pl, chaos){ if(Math.random()<chaos) return randomMove(b); const w=winningMove(b, ai); if(w!=null) return w; const bl=winningMove(b, pl); if(bl!=null) return bl; if(!b[4]) return 4; const corners=[0,2,6,8].filter(i=>!b[i]); if(corners.length) return corners[Math.floor(Math.random()*corners.length)]; return randomMove(b); }
+  function winningMove(b, mark){ const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]; for(const L of lines){ const [a,c,d]=L; const v=[b[a],b[c],b[d]]; const cnt=v.filter(x=>x===mark).length; const emp=[a,c,d].find(i=>!b[i]); if(cnt===2 && emp!=null) return emp; } return null; }
+  function minimaxMove(b, ai, pl, maxDepth, chaos){ if(Math.random()<chaos) return randomMove(b); let bestScore=-Infinity, bestMove=null; const empty=b.map((v,i)=>v?null:i).filter(i=>i!=null); for(const i of empty){ b[i]=ai; const score=minimax(b, false, ai, pl, 0, maxDepth); b[i]=''; if(score>bestScore){ bestScore=score; bestMove=i; } } return bestMove!=null? bestMove : randomMove(b); }
+  const scores={ win:10, lose:-10, draw:0 };
+  function minimax(b, isAITurn, ai, pl, depth, maxDepth){ const out=terminal(b, ai, pl); if(out || depth>=maxDepth){ if(out==='ai') return scores.win - depth; if(out==='pl') return scores.lose + depth; return scores.draw; } const empty=b.map((v,i)=>v?null:i).filter(i=>i!=null); if(isAITurn){ let best=-Infinity; for(const i of empty){ b[i]=ai; best=Math.max(best, minimax(b, false, ai, pl, depth+1, maxDepth)); b[i]=''; } return best; } else { let best=Infinity; for(const i of empty){ b[i]=pl; best=Math.min(best, minimax(b, true, ai, pl, depth+1, maxDepth)); b[i]=''; } return best; } }
+  function terminal(b, ai, pl){ const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]; for(const L of lines){ const [a,c,d]=L; if(b[a] && b[a]===b[c] && b[a]===b[d]){ return b[a]===ai? 'ai' : 'pl'; } } if(b.every(v=>v)) return 'draw'; return null; }
+
+  // ---------- Background music control ----------
+  // The audio element and toggle exist in DOM; attempt to play and let user unmute if blocked.
+  const bgAudio = $('bgMusic');
+  const toggleBtn = $('toggleMusic');
+
+  // Try to start playback (some browsers block autoplay; catch and mute if necessary)
+  if (bgAudio) {
+    bgAudio.loop = true;
+    // Attempt to play; if blocked we set muted so the toggle will unmute later when user clicks.
+    bgAudio.play().catch(()=> {
+      try { bgAudio.muted = true; } catch(e) {}
+    });
+  }
+
+  if (toggleBtn && bgAudio) {
+    // initialize icon
+    toggleBtn.textContent = bgAudio.muted ? '🔇' : '🔊';
+    toggleBtn.addEventListener('click', () => {
+      try {
+        if (bgAudio.muted) {
+          bgAudio.muted = false;
+          // some browsers require user interaction to start audio if it was blocked
+          bgAudio.play().catch(()=>{ /* ignore */ });
+          toggleBtn.textContent = '🔊';
+        } else {
+          bgAudio.muted = true;
+          toggleBtn.textContent = '🔇';
+        }
+      } catch(e) {
+        // fallback: toggle playback
+        if (bgAudio.paused) { bgAudio.play().catch(()=>{}); toggleBtn.textContent = '🔊'; }
+        else { bgAudio.pause(); toggleBtn.textContent = '🔇'; }
+      }
+    });
+  }
+
+  // Keyboard quick exit to home
+  window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') goHome(); });
+})();
+</script>
+</body>
+</html>
